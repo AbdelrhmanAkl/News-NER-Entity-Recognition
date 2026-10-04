@@ -17,23 +17,23 @@ MODEL_ID = "AbdelrahmanAkl/NewsNER-DistilBERT"
 MODEL_URL = f"https://huggingface.co/{MODEL_ID}"
 MIN_CONFIDENCE = 0.50  # entities below this score are hidden
 
-# label -> (singular, plural, accent, soft tint)
+# label -> (singular, plural, accent, highlighter tint, text ink)
 ENTITY = {
-    "PER": ("Person", "People", "#8EA2FF", "rgba(142,162,255,.18)"),
-    "ORG": ("Organization", "Organizations", "#4FD8B0", "rgba(79,216,176,.16)"),
-    "LOC": ("Location", "Locations", "#FFB86B", "rgba(255,184,107,.17)"),
-    "MISC": ("Other name", "Other names", "#FF8FB5", "rgba(255,143,181,.17)"),
+    "PER": ("Person", "People", "#4357FF", "#D6E0FF", "#2C3FD6"),
+    "ORG": ("Organization", "Organizations", "#12B886", "#CDF3E2", "#0B8A62"),
+    "LOC": ("Location", "Locations", "#FF922B", "#FFE2BD", "#C25E00"),
+    "MISC": ("Other name", "Other names", "#F0508C", "#FFD3E5", "#C2255C"),
 }
 SHORT = {"PER": "person", "ORG": "org", "LOC": "place", "MISC": "other"}
 
 SAMPLES = {
-    "Tech announcement": (
+    "Technology": (
         "Apple announced a new artificial intelligence research center in London. "
         "The company said that John Smith, Apple's Vice President of AI, "
         "will lead the new team. Microsoft and Google are also expected to "
         "participate in the European AI initiative."
     ),
-    "World news": (
+    "World": (
         "German Chancellor Angela Merkel met French President Emmanuel Macron in Berlin "
         "on Tuesday to discuss the European Union budget. The talks were also attended "
         "by officials from the European Commission and the International Monetary Fund."
@@ -62,30 +62,33 @@ st.markdown(
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap');
 
 :root {
-    --bg: #0B1020; --surface: #121A30; --line: #243050;
-    --text: #E8ECF6; --muted: #8D99B5; --accent: #8EA2FF;
+    --bg: #F7F9FE; --surface: #FFFFFF; --line: #E3E8F4;
+    --text: #14213D; --muted: #5F6B85; --accent: #4357FF;
     --serif: 'Newsreader', Georgia, serif;
     --sans: 'Instrument Sans', system-ui, sans-serif;
 }
 
-/* base: everything is styled here, so the page looks the same with or without a theme file */
-.stApp, [data-testid="stAppViewContainer"] {
-    background: radial-gradient(900px 380px at 12% -8%, rgba(142,162,255,.13), transparent 60%), var(--bg);
+/* base: every visible element is styled here, so the look does not depend on a theme file */
+.stApp {
+    background:
+        radial-gradient(760px 340px at 6% -6%, #FFF0C2 0%, transparent 62%),
+        radial-gradient(760px 380px at 98% 0%, #D9E4FF 0%, transparent 58%),
+        var(--bg);
     color: var(--text);
 }
+[data-testid="stAppViewContainer"], header[data-testid="stHeader"] { background: transparent; }
 .stApp, .stApp p, .stApp label, .stApp button, .stApp textarea, .stApp input { font-family: var(--sans); }
 [data-testid="stIconMaterial"], .material-symbols-rounded, .material-icons {
     font-family: 'Material Symbols Rounded', 'Material Icons' !important;
 }
 #MainMenu, footer { visibility: hidden; }
-header[data-testid="stHeader"] { background: transparent; }
 .block-container { max-width: 1120px; padding-top: 1.4rem; padding-bottom: 3rem; }
 
 /* top bar */
 .nav { display: flex; justify-content: space-between; align-items: center; padding-bottom: 1rem; border-bottom: 1px solid var(--line); }
-.brand { display: flex; align-items: center; gap: .6rem; font-weight: 600; font-size: 1.05rem; letter-spacing: -0.01em; color: var(--text); }
+.brand { display: flex; align-items: center; gap: .6rem; font-weight: 700; font-size: 1.05rem; letter-spacing: -0.01em; color: var(--text); }
 .status { font-size: .84rem; color: var(--muted); display: flex; align-items: center; gap: .5rem; }
-.status i { width: 8px; height: 8px; border-radius: 50%; background: #4FD8B0; display: inline-block; }
+.status i { width: 8px; height: 8px; border-radius: 50%; background: #12B886; display: inline-block; }
 .status a { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
 
 /* hero */
@@ -94,77 +97,86 @@ header[data-testid="stHeader"] { background: transparent; }
     font-family: var(--serif) !important; font-weight: 500; color: var(--text);
     font-size: clamp(2.4rem, 5.4vw, 4rem); line-height: 1.04; letter-spacing: -0.025em; max-width: 15ch;
 }
-.lede { color: var(--muted); font-size: 1.08rem; line-height: 1.65; max-width: 560px; margin-top: 1.1rem; }
+.lede { color: var(--muted); font-size: 1.1rem; line-height: 1.65; max-width: 560px; margin-top: 1.1rem; }
 
 /* example chips */
 .try { color: var(--muted); font-size: .88rem; margin: 0 0 .5rem; }
 [class*="st-key-ex_"] button {
-    min-height: 2.1rem; padding: 0 .9rem; font-size: .86rem; font-weight: 500;
-    border-radius: 999px; background: transparent; color: var(--muted); border: 1px solid var(--line);
+    min-height: 2.1rem; padding: 0 .9rem; font-size: .86rem; font-weight: 600;
+    border-radius: 999px; background: #fff; color: var(--muted); border: 1px solid var(--line);
 }
-[class*="st-key-ex_"] button:hover { color: var(--text); border-color: var(--accent); background: rgba(142,162,255,.08); }
+[class*="st-key-ex_"] button p { color: inherit !important; }
+[class*="st-key-ex_"] button:hover { color: var(--accent); border-color: var(--accent); background: #fff; }
 
 /* text area */
-div[data-baseweb="textarea"], div[data-baseweb="base-input"] {
-    background: var(--surface) !important; border: 1px solid var(--line) !important; border-radius: 14px !important;
+.stTextArea [data-baseweb="textarea"], .stTextArea [data-baseweb="base-input"] {
+    background: #fff !important; border: 1px solid var(--line) !important; border-radius: 14px !important;
+    box-shadow: 0 6px 24px rgba(67, 87, 255, .06);
 }
-div[data-baseweb="textarea"]:focus-within { border-color: var(--accent) !important; box-shadow: 0 0 0 1px var(--accent); }
-textarea {
-    background: transparent !important; color: var(--text) !important;
-    font-family: var(--serif) !important; font-size: 1.12rem !important; line-height: 1.7 !important;
-    padding: 1rem 1.15rem !important;
+.stTextArea [data-baseweb="textarea"]:focus-within, .stTextArea [data-baseweb="base-input"]:focus-within {
+    border-color: var(--accent) !important; box-shadow: 0 0 0 3px rgba(67, 87, 255, .15) !important;
 }
+.stTextArea textarea {
+    background: #fff !important; color: var(--text) !important; -webkit-text-fill-color: var(--text) !important;
+    caret-color: var(--accent);
+    font-family: var(--serif) !important; font-size: 1.14rem !important; line-height: 1.7 !important;
+    padding: 1rem 1.15rem !important; border-radius: 14px !important;
+}
+.stTextArea textarea::placeholder { color: #98A2B8 !important; -webkit-text-fill-color: #98A2B8 !important; }
 
 /* buttons */
 .stButton > button, .stDownloadButton > button { border-radius: 12px; font-weight: 600; min-height: 2.8rem; }
-button[data-testid="stBaseButton-primary"], .stButton > button[kind="primary"] { background: var(--accent); color: #0B1020; border: 0; }
-button[data-testid="stBaseButton-primary"]:hover, .stButton > button[kind="primary"]:hover { background: #A9B8FF; color: #0B1020; }
-button[data-testid="stBaseButton-secondary"], .stButton > button[kind="secondary"], .stDownloadButton > button {
-    background: transparent; color: var(--text); border: 1px solid var(--line);
+button[data-testid="stBaseButton-primary"], .stButton > button[kind="primary"] {
+    background: var(--accent); border: 0; color: #fff; box-shadow: 0 6px 18px rgba(67, 87, 255, .28);
 }
-button[data-testid="stBaseButton-secondary"]:hover, .stDownloadButton > button:hover { border-color: var(--accent); color: var(--text); }
+button[data-testid="stBaseButton-primary"] p, button[data-testid="stBaseButton-primary"] * { color: #fff !important; }
+button[data-testid="stBaseButton-primary"]:hover, .stButton > button[kind="primary"]:hover { background: #3346E6; }
+button[data-testid="stBaseButton-secondary"], .stButton > button[kind="secondary"], .stDownloadButton > button {
+    background: #fff; color: var(--text); border: 1px solid var(--line);
+}
+button[data-testid="stBaseButton-secondary"]:hover, .stDownloadButton > button:hover { border-color: var(--accent); color: var(--accent); }
 [data-testid="stSpinner"], [data-testid="stSpinner"] * { color: var(--muted) !important; }
 
-.notice { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: .9rem 1.1rem; color: var(--muted); margin-top: 1rem; }
+.notice { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: .9rem 1.1rem; color: var(--muted); margin-top: 1rem; }
 
 /* result header */
-.kicker { font-family: var(--serif); font-size: 1.6rem; font-weight: 500; letter-spacing: -0.01em; margin: 2.6rem 0 .9rem; color: var(--text); }
+.kicker { font-family: var(--serif); font-size: 1.7rem; font-weight: 500; letter-spacing: -0.01em; margin: 2.6rem 0 .9rem; color: var(--text); }
 .dist { display: flex; gap: 4px; height: 10px; margin: .4rem 0 .7rem; }
 .dist div { border-radius: 99px; min-width: 10px; }
 .dist-legend { display: flex; flex-wrap: wrap; gap: 1.3rem; font-size: .9rem; color: var(--muted); margin-bottom: 1.6rem; }
-.dist-legend b { color: var(--text); font-weight: 600; margin-left: .35rem; }
+.dist-legend b { color: var(--text); font-weight: 700; margin-left: .35rem; }
 .dist-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: .45rem; }
 
-/* annotated article */
+/* annotated article, entities look like highlighter strokes */
 .paper {
-    background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
-    padding: 1.9rem 2rem; font-family: var(--serif); font-size: 1.32rem; line-height: 2.15; color: #D3DAEA;
+    background: #fff; border: 1px solid var(--line); border-radius: 16px;
+    padding: 1.9rem 2rem; font-family: var(--serif); font-size: 1.32rem; line-height: 2.15; color: #34405C;
+    box-shadow: 0 10px 34px rgba(67, 87, 255, .07);
 }
 .hint { color: var(--muted); font-size: .84rem; margin-top: .7rem; }
 .ent {
-    --c: #fff; --soft: transparent; --i: 0;
-    color: var(--text); font-weight: 500; padding: 1px 4px 2px; border-radius: 4px;
-    border-bottom: 2px solid var(--c);
-    background-image: linear-gradient(var(--soft), var(--soft));
+    --tint: #eee; --ink: #333; --i: 0;
+    color: var(--text); font-weight: 600; padding: 0 4px; border-radius: 3px;
+    background-image: linear-gradient(transparent 38%, var(--tint) 38%, var(--tint) 94%, transparent 94%);
     background-repeat: no-repeat; background-size: 0% 100%;
     animation: sweep .7s cubic-bezier(.2,.7,.2,1) forwards;
     animation-delay: calc(var(--i) * 120ms + 150ms);
 }
-.ent sup { font-family: var(--sans); font-size: .62rem; font-weight: 600; margin-left: 4px; color: var(--c); letter-spacing: .02em; }
+.ent sup { font-family: var(--sans); font-size: .62rem; font-weight: 700; margin-left: 4px; color: var(--ink); }
 @keyframes sweep { to { background-size: 100% 100%; } }
 @media (prefers-reduced-motion: reduce) { .ent { animation: none; background-size: 100% 100%; } }
 
 /* index */
 .idx { border-left: 1px solid var(--line); padding-left: 1.4rem; }
-.idx-h { display: flex; align-items: center; gap: .55rem; font-size: .95rem; font-weight: 600; color: var(--text); margin: 0 0 .4rem; }
+.idx-h { display: flex; align-items: center; gap: .55rem; font-size: .95rem; font-weight: 700; color: var(--text); margin: 0 0 .4rem; }
 .idx-h i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
-.idx-h span { color: var(--muted); font-weight: 500; margin-left: auto; }
+.idx-h span { color: var(--muted); font-weight: 600; margin-left: auto; }
 .idx-list { margin: 0 0 1.5rem; }
 .idx-item { padding: .55rem 0; border-top: 1px solid var(--line); }
 .idx-row { display: flex; justify-content: space-between; gap: .8rem; align-items: baseline; }
-.idx-name { color: var(--text); font-weight: 500; word-break: break-word; }
+.idx-name { color: var(--text); font-weight: 600; word-break: break-word; }
 .idx-meta { color: var(--muted); font-size: .8rem; white-space: nowrap; }
-.mini { height: 3px; background: #1B2542; border-radius: 99px; margin-top: .5rem; overflow: hidden; }
+.mini { height: 4px; background: #EBEFF9; border-radius: 99px; margin-top: .5rem; overflow: hidden; }
 .mini div { height: 100%; border-radius: 99px; }
 
 .foot { margin-top: 3.5rem; padding-top: 1.2rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .85rem; display: flex; justify-content: space-between; flex-wrap: wrap; gap: .5rem; }
@@ -241,10 +253,10 @@ def annotate(text, entities):
     for ent in entities:
         if ent["start"] < cursor:
             continue
-        singular, _, accent, soft = ENTITY[ent["label"]]
+        singular, _, _, tint, ink = ENTITY[ent["label"]]
         out.append(html.escape(text[cursor:ent["start"]]))
         out.append(
-            f'<span class="ent" style="--c:{accent};--soft:{soft};--i:{i}" '
+            f'<span class="ent" style="--tint:{tint};--ink:{ink};--i:{i}" '
             f'title="{html.escape(singular)}, {ent["score"]:.1%} confidence">'
             f'{html.escape(text[ent["start"]:ent["end"]])}'
             f'<sup>{SHORT[ent["label"]]}</sup></span>'
@@ -269,7 +281,7 @@ def group_entities(entities):
 
 def build_index(grouped):
     parts = []
-    for label, (_, plural, accent, _) in ENTITY.items():
+    for label, (_, plural, accent, _, _) in ENTITY.items():
         items = [g for g in grouped if g["label"] == label]
         if not items:
             continue
@@ -299,7 +311,7 @@ def clear_all():
     st.session_state["result"] = None
 
 
-st.session_state.setdefault("article_text", SAMPLES["Tech announcement"])
+st.session_state.setdefault("article_text", SAMPLES["Technology"])
 st.session_state.setdefault("result", None)
 
 
@@ -314,8 +326,8 @@ render(
 <div class="nav">
   <div class="brand">
     <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M8 4H4v18h4M18 4h4v18h-4" stroke="#8EA2FF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-      <circle cx="13" cy="13" r="3" fill="#4FD8B0"/>
+      <path d="M8 4H4v18h4M18 4h4v18h-4" stroke="#4357FF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="13" cy="13" r="3" fill="#FF922B"/>
     </svg>
     NewsNER-AI
   </div>
@@ -337,7 +349,7 @@ render(
 # ---------------------------------------------------------
 
 render('<div class="try">Try an example</div>')
-chip_cols = st.columns([1.3, 1, 0.8, 4])
+chip_cols = st.columns([1, 0.8, 0.8, 4.4])
 for col, name in zip(chip_cols, SAMPLES):
     with col:
         st.button(name, key=f"ex_{name}", on_click=set_sample, args=(name,), use_container_width=True)
