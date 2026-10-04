@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.streamlit/secrets.toml
+
+# Local model files
+models/NewsNER-DistilBERT/
+
+# Hugging Face cache
+.cache/
