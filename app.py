@@ -15,21 +15,16 @@ from transformers import pipeline
 # ---------------------------------------------------------
 
 MODEL_ID = "AbdelrahmanAkl/NewsNER-DistilBERT"
+MODEL_URL = f"https://huggingface.co/{MODEL_ID}"
 
-LABELS = {
-    "PER": "Person",
-    "ORG": "Organization",
-    "LOC": "Location",
-    "MISC": "Miscellaneous",
+# label -> (singular, plural, accent, soft tint)
+ENTITY = {
+    "PER": ("Person", "People", "#8EA2FF", "rgba(142,162,255,.18)"),
+    "ORG": ("Organization", "Organizations", "#4FD8B0", "rgba(79,216,176,.16)"),
+    "LOC": ("Location", "Locations", "#FFB86B", "rgba(255,184,107,.17)"),
+    "MISC": ("Other name", "Other names", "#FF8FB5", "rgba(255,143,181,.17)"),
 }
-
-# label -> (accent, soft background, border)
-COLORS = {
-    "PER": ("#3B4BDB", "#EDF0FF", "#C5CCFF"),
-    "ORG": ("#0F8A5F", "#E6F6EF", "#B5E3CF"),
-    "LOC": ("#C2640A", "#FFF3E0", "#F7D4A3"),
-    "MISC": ("#B8265F", "#FDEBF2", "#F5C2D6"),
-}
+SHORT = {"PER": "person", "ORG": "org", "LOC": "place", "MISC": "other"}
 
 SAMPLES = {
     "Tech announcement": (
@@ -51,12 +46,12 @@ SAMPLES = {
 
 
 # ---------------------------------------------------------
-# Page setup
+# Page setup and styling
 # ---------------------------------------------------------
 
 st.set_page_config(
     page_title="NewsNER-AI",
-    page_icon="🗞️",
+    page_icon="📰",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -64,67 +59,100 @@ st.set_page_config(
 st.markdown(
     """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap');
 
-html, body, [class*="st-"], .stMarkdown { font-family: 'Inter', system-ui, sans-serif; }
+:root {
+    --bg: #0B1020; --surface: #121A30; --line: #243050;
+    --text: #E8ECF6; --muted: #8D99B5; --accent: #8EA2FF;
+    --serif: 'Newsreader', Georgia, serif;
+}
+
+html, body, .stApp, [class*="st-"] { font-family: 'Instrument Sans', system-ui, sans-serif; }
+.stApp { background: var(--bg); color: var(--text); }
 #MainMenu, footer { visibility: hidden; }
+header[data-testid="stHeader"] { background: transparent; }
+.block-container { max-width: 1120px; padding-top: 1.4rem; padding-bottom: 3rem; }
 
-.block-container { max-width: 1120px; padding-top: 2.4rem; padding-bottom: 3rem; }
+/* top bar */
+.nav { display: flex; justify-content: space-between; align-items: center; padding-bottom: 1rem; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: .6rem; font-weight: 600; font-size: 1.05rem; letter-spacing: -0.01em; color: var(--text); }
+.status { font-size: .84rem; color: var(--muted); display: flex; align-items: center; gap: .5rem; }
+.status i { width: 8px; height: 8px; border-radius: 50%; background: #4FD8B0; display: inline-block; }
+.status a { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
 
+/* hero */
+.hero { padding: 3.2rem 0 1.6rem; }
 .hero h1 {
-    font-size: 2.6rem; font-weight: 700; letter-spacing: -0.04em;
-    color: #14171F; margin: 0; line-height: 1.1;
+    font-family: var(--serif); font-weight: 500; color: var(--text);
+    font-size: clamp(2.3rem, 5.2vw, 3.9rem); line-height: 1.04; letter-spacing: -0.025em;
+    max-width: 15ch; margin: 0;
 }
-.hero p { color: #5B6272; font-size: 1.05rem; margin: .6rem 0 0; max-width: 640px; line-height: 1.6; }
+.hero p { color: var(--muted); font-size: 1.08rem; line-height: 1.65; max-width: 560px; margin: 1.1rem 0 0; }
 
-.chips { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1.1rem 0 .2rem; }
-.chip {
-    background: #fff; border: 1px solid #E3E6EC; border-radius: 999px;
-    padding: .28rem .8rem; font-size: .82rem; color: #3A4152;
+/* inputs */
+textarea {
+    background: var(--surface) !important; color: var(--text) !important;
+    border: 1px solid var(--line) !important; border-radius: 14px !important;
+    font-family: var(--serif) !important; font-size: 1.12rem !important; line-height: 1.7 !important;
+    padding: 1rem 1.15rem !important;
 }
-.chip b { color: #14171F; font-weight: 600; }
-
-.section-title { color: #14171F; font-size: 1.15rem; font-weight: 650; margin: 2rem 0 .8rem; }
-
-.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .8rem; }
-.stat {
-    background: #fff; border: 1px solid #E3E6EC; border-radius: 12px;
-    padding: .9rem 1.05rem; border-left-width: 4px;
+textarea:focus { border-color: var(--accent) !important; box-shadow: 0 0 0 1px var(--accent) !important; }
+[data-baseweb="select"] > div { background: var(--surface) !important; border-color: var(--line) !important; color: var(--text) !important; }
+span[data-baseweb="tag"] { background: rgba(142,162,255,.18) !important; color: var(--text) !important; }
+.stButton > button { border-radius: 12px; font-weight: 600; min-height: 2.8rem; }
+.stButton > button[kind="primary"], button[data-testid="stBaseButton-primary"] {
+    background: var(--accent); color: #0B1020; border: 0;
 }
-.stat .n { font-size: 1.9rem; font-weight: 700; line-height: 1.1; color: #14171F; }
-.stat .l { font-size: .85rem; color: #5B6272; margin-top: .15rem; }
-
-.ent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: .8rem; }
-.ent-card {
-    background: #fff; border: 1px solid #E3E6EC; border-radius: 12px; padding: .95rem 1.05rem;
+.stButton > button[kind="primary"]:hover, button[data-testid="stBaseButton-primary"]:hover { background: #A9B8FF; color: #0B1020; }
+.stButton > button[kind="secondary"], button[data-testid="stBaseButton-secondary"] {
+    background: transparent; color: var(--text); border: 1px solid var(--line);
 }
-.ent-top { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
-.ent-type { font-size: .78rem; font-weight: 600; padding: .12rem .55rem; border-radius: 999px; border: 1px solid; }
-.ent-count { font-size: .78rem; color: #5B6272; }
-.ent-text { color: #14171F; font-size: 1.08rem; font-weight: 600; margin-top: .55rem; word-break: break-word; }
-.bar { height: 5px; border-radius: 99px; background: #EEF0F4; margin-top: .7rem; overflow: hidden; }
-.bar > div { height: 100%; border-radius: 99px; }
-.ent-conf { color: #5B6272; font-size: .8rem; margin-top: .35rem; }
+div[data-testid="stExpander"] { border: 1px solid var(--line); border-radius: 12px; background: transparent; }
 
-.article-box {
-    background: #fff; border: 1px solid #E3E6EC; border-radius: 12px;
-    padding: 1.4rem 1.5rem; color: #2B3142; font-size: 1.02rem; line-height: 2.1;
+/* section headings */
+.kicker { font-family: var(--serif); font-size: 1.5rem; font-weight: 500; letter-spacing: -0.01em; margin: 2.4rem 0 .9rem; color: var(--text); }
+.sub { color: var(--muted); font-size: .9rem; margin: -.5rem 0 1rem; }
+
+/* distribution bar */
+.dist { display: flex; gap: 4px; height: 10px; margin: .4rem 0 .7rem; }
+.dist div { border-radius: 99px; min-width: 10px; }
+.dist-legend { display: flex; flex-wrap: wrap; gap: 1.3rem; font-size: .9rem; color: var(--muted); margin-bottom: 1.6rem; }
+.dist-legend b { color: var(--text); font-weight: 600; margin-left: .3rem; }
+.dist-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: .45rem; }
+
+/* annotated article */
+.paper {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+    padding: 1.9rem 2rem; font-family: var(--serif); font-size: 1.32rem; line-height: 2.15; color: #D3DAEA;
 }
 .ent {
-    border: 1px solid; border-radius: 6px; padding: 1px 6px; margin: 0 1px;
-    font-weight: 600; color: #14171F; white-space: nowrap;
+    --c: #fff; --soft: transparent; --i: 0;
+    color: var(--text); font-weight: 500; padding: 1px 4px 2px; border-radius: 4px;
+    border-bottom: 2px solid var(--c);
+    background-image: linear-gradient(var(--soft), var(--soft));
+    background-repeat: no-repeat; background-size: 0% 100%;
+    animation: sweep .7s cubic-bezier(.2,.7,.2,1) forwards;
+    animation-delay: calc(var(--i) * 120ms + 150ms);
 }
-.ent .tag { font-size: .68rem; font-weight: 700; margin-left: 5px; }
+.ent sup { font-family: 'Instrument Sans', sans-serif; font-size: .62rem; font-weight: 600; margin-left: 4px; color: var(--c); letter-spacing: .02em; }
+@keyframes sweep { to { background-size: 100% 100%; } }
+@media (prefers-reduced-motion: reduce) { .ent { animation: none; background-size: 100% 100%; } }
 
-.legend { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: .8rem; font-size: .84rem; color: #3A4152; }
-.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; }
+/* index */
+.idx { border-left: 1px solid var(--line); padding-left: 1.4rem; }
+.idx h4 { display: flex; align-items: center; gap: .55rem; font-size: .95rem; font-weight: 600; color: var(--text); margin: 0 0 .5rem; }
+.idx h4 i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.idx h4 span { color: var(--muted); font-weight: 500; margin-left: auto; }
+.idx ul { list-style: none; padding: 0; margin: 0 0 1.5rem; }
+.idx li { padding: .5rem 0; border-top: 1px solid var(--line); }
+.idx .row { display: flex; justify-content: space-between; gap: .8rem; align-items: baseline; }
+.idx .nm { color: var(--text); font-weight: 500; word-break: break-word; }
+.idx .meta { color: var(--muted); font-size: .8rem; white-space: nowrap; }
+.idx .mini { height: 3px; background: #1B2542; border-radius: 99px; margin-top: .45rem; overflow: hidden; }
+.idx .mini div { height: 100%; border-radius: 99px; }
 
-.footer { text-align: center; color: #8A91A0; font-size: .82rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #E8EAEF; }
-
-.stButton > button { border-radius: 10px; font-weight: 600; min-height: 2.75rem; }
-textarea { border-radius: 12px !important; font-size: 1rem !important; line-height: 1.6 !important; }
-
-@media (max-width: 760px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+.foot { margin-top: 3.5rem; padding-top: 1.2rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .85rem; display: flex; justify-content: space-between; flex-wrap: wrap; gap: .5rem; }
+.foot a { color: var(--muted); text-underline-offset: 3px; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -133,7 +161,7 @@ textarea { border-radius: 12px !important; font-size: 1rem !important; line-heig
 
 def render(markup: str):
     """Render HTML without Streamlit treating indented lines as a code block."""
-    flat = "".join(line.strip() for line in markup.splitlines())
+    flat = " ".join(line.strip() for line in markup.splitlines() if line.strip())
     st.markdown(flat, unsafe_allow_html=True)
 
 
@@ -149,7 +177,7 @@ def load_ner_model():
         model=MODEL_ID,
         tokenizer=MODEL_ID,
         aggregation_strategy="simple",
-        stride=64,  # lets long articles be processed in overlapping windows
+        stride=64,  # long articles are read in overlapping windows
         device=device,
     )
 
@@ -164,7 +192,7 @@ def run_ner(text: str):
     for item in raw:
         s, e = item.get("start"), item.get("end")
         label = item.get("entity_group")
-        if s is None or e is None or label not in LABELS:
+        if s is None or e is None or label not in ENTITY:
             continue
         entities.append(
             {
@@ -183,20 +211,21 @@ def run_ner(text: str):
 # Helpers
 # ---------------------------------------------------------
 
-def highlight_article(text, entities):
-    out, cursor = [], 0
+def annotate(text, entities):
+    out, cursor, i = [], 0, 0
     for ent in entities:
         if ent["start"] < cursor:
             continue
-        accent, soft, border = COLORS[ent["label"]]
+        singular, _, accent, soft = ENTITY[ent["label"]]
         out.append(html.escape(text[cursor:ent["start"]]))
         out.append(
-            f'<span class="ent" style="background:{soft};border-color:{border}" '
-            f'title="{html.escape(LABELS[ent["label"]])} - {ent["score"]:.1%}">'
+            f'<span class="ent" style="--c:{accent};--soft:{soft};--i:{i}" '
+            f'title="{html.escape(singular)}, {ent["score"]:.1%} confidence">'
             f'{html.escape(text[ent["start"]:ent["end"]])}'
-            f'<span class="tag" style="color:{accent}">{ent["label"]}</span></span>'
+            f'<sup>{SHORT[ent["label"]]}</sup></span>'
         )
         cursor = ent["end"]
+        i += 1
     out.append(html.escape(text[cursor:]))
     return "".join(out).replace("\n", "<br>")
 
@@ -213,6 +242,27 @@ def group_entities(entities):
     return sorted(groups.values(), key=lambda g: (-g["mentions"], -g["score"]))
 
 
+def build_index(grouped):
+    parts = []
+    for label, (_, plural, accent, _) in ENTITY.items():
+        items = [g for g in grouped if g["label"] == label]
+        if not items:
+            continue
+        rows = []
+        for g in items:
+            extra = f'{g["mentions"]} mentions, ' if g["mentions"] > 1 else ""
+            rows.append(
+                f'<li><div class="row"><span class="nm">{html.escape(g["text"])}</span>'
+                f'<span class="meta">{extra}{g["score"]:.0%}</span></div>'
+                f'<div class="mini"><div style="width:{g["score"]*100:.1f}%;background:{accent}"></div></div></li>'
+            )
+        parts.append(
+            f'<h4><i style="background:{accent}"></i>{plural}<span>{len(items)}</span></h4>'
+            f'<ul>{"".join(rows)}</ul>'
+        )
+    return '<div class="idx">' + "".join(parts) + "</div>"
+
+
 def set_sample():
     choice = st.session_state.get("sample_choice")
     if choice in SAMPLES:
@@ -223,7 +273,7 @@ def set_sample():
 def clear_all():
     st.session_state["article_text"] = ""
     st.session_state["result"] = None
-    st.session_state["sample_choice"] = "Choose an example"
+    st.session_state["sample_choice"] = "Try an example"
 
 
 st.session_state.setdefault("article_text", SAMPLES["Tech announcement"])
@@ -231,20 +281,29 @@ st.session_state.setdefault("result", None)
 
 
 # ---------------------------------------------------------
-# Header
+# Top bar and hero
 # ---------------------------------------------------------
+
+device = "GPU" if torch.cuda.is_available() else "CPU"
 
 render(
     f"""
-<div class="hero">
-  <h1>NewsNER-AI</h1>
-  <p>Paste a news article and instantly see the people, organizations,
-  locations and other named entities it mentions.</p>
+<div class="nav">
+  <div class="brand">
+    <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 4H4v18h4M18 4h4v18h-4" stroke="#8EA2FF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="13" cy="13" r="3" fill="#4FD8B0"/>
+    </svg>
+    NewsNER-AI
+  </div>
+  <div class="status"><i></i>
+    <a href="{MODEL_URL}" target="_blank">DistilBERT</a> running on {device}
+  </div>
 </div>
-<div class="chips">
-  <span class="chip">Model: <b>DistilBERT (fine-tuned)</b></span>
-  <span class="chip">Trained on: <b>CoNLL-2003</b></span>
-  <span class="chip">Runs on: <b>{"GPU" if torch.cuda.is_available() else "CPU"}</b></span>
+<div class="hero">
+  <h1>See who and what a story is about.</h1>
+  <p>Paste a news article. NewsNER-AI marks every person, organization and place it
+  names, and shows how sure it is about each one.</p>
 </div>
 """
 )
@@ -254,11 +313,9 @@ render(
 # Input
 # ---------------------------------------------------------
 
-render('<div class="section-title">Your article</div>')
-
 st.selectbox(
     "Example",
-    ["Choose an example", *SAMPLES.keys()],
+    ["Try an example", *SAMPLES.keys()],
     key="sample_choice",
     on_change=set_sample,
     label_visibility="collapsed",
@@ -267,7 +324,7 @@ st.selectbox(
 st.text_area(
     "News article",
     key="article_text",
-    height=200,
+    height=190,
     placeholder="Paste a news article here...",
     label_visibility="collapsed",
 )
@@ -297,77 +354,56 @@ result = st.session_state["result"]
 if result:
     text, all_entities = result["text"], result["entities"]
 
-    render('<div class="section-title">Results</div>')
-
-    f1, f2 = st.columns([1, 2])
-    with f1:
-        threshold = st.slider(
-            "Minimum confidence", 0.0, 1.0, 0.5, 0.05, format="%.2f",
-            help="Hide entities the model is less sure about.",
-        )
-    with f2:
-        selected = st.multiselect(
-            "Entity types",
-            options=list(LABELS),
-            default=list(LABELS),
-            format_func=lambda k: LABELS[k],
-        )
+    with st.expander("Filters"):
+        f1, f2 = st.columns([1, 2])
+        with f1:
+            threshold = st.slider(
+                "Minimum confidence", 0.0, 1.0, 0.5, 0.05, format="%.2f",
+                help="Hide entities the model is less sure about.",
+            )
+        with f2:
+            selected = st.multiselect(
+                "Entity types",
+                options=list(ENTITY),
+                default=list(ENTITY),
+                format_func=lambda k: ENTITY[k][0],
+            )
 
     entities = [e for e in all_entities if e["score"] >= threshold and e["label"] in selected]
 
     if not entities:
         st.info("No entities match these filters. Lower the confidence or add more entity types.")
     else:
-        counts = {k: sum(1 for e in entities if e["label"] == k) for k in LABELS}
+        counts = {k: sum(1 for e in entities if e["label"] == k) for k in ENTITY}
+        present = [k for k in ENTITY if counts[k]]
+
+        render(f'<div class="kicker">{len(entities)} entities found in {result["ms"]:.0f} ms</div>')
         render(
-            '<div class="stat-grid">'
+            '<div class="dist">'
+            + "".join(f'<div style="flex:{counts[k]};background:{ENTITY[k][2]}"></div>' for k in present)
+            + "</div>"
+            + '<div class="dist-legend">'
             + "".join(
-                f'<div class="stat" style="border-left-color:{COLORS[k][0]}">'
-                f'<div class="n">{counts[k]}</div><div class="l">{LABELS[k]}</div></div>'
-                for k in LABELS
+                f'<span><i style="background:{ENTITY[k][2]}"></i>{ENTITY[k][1]}<b>{counts[k]}</b></span>'
+                for k in present
             )
             + "</div>"
         )
-        st.caption(f"{len(entities)} mentions found in {result['ms']:.0f} ms")
-
-        tab_text, tab_cards, tab_table = st.tabs(["Highlighted article", "Entities", "Table and export"])
-
-        with tab_text:
-            render(
-                '<div class="legend">'
-                + "".join(
-                    f'<span><i style="background:{COLORS[k][1]};border:1px solid {COLORS[k][2]}"></i>{LABELS[k]}</span>'
-                    for k in LABELS
-                )
-                + "</div>"
-            )
-            render(f'<div class="article-box">{highlight_article(text, entities)}</div>')
 
         grouped = group_entities(entities)
 
-        with tab_cards:
-            cards = []
-            for g in grouped:
-                accent, soft, border = COLORS[g["label"]]
-                mentions = f'{g["mentions"]} mentions' if g["mentions"] > 1 else "1 mention"
-                cards.append(
-                    f'<div class="ent-card">'
-                    f'<div class="ent-top">'
-                    f'<span class="ent-type" style="color:{accent};background:{soft};border-color:{border}">{LABELS[g["label"]]}</span>'
-                    f'<span class="ent-count">{mentions}</span></div>'
-                    f'<div class="ent-text">{html.escape(g["text"])}</div>'
-                    f'<div class="bar"><div style="width:{g["score"]*100:.1f}%;background:{accent}"></div></div>'
-                    f'<div class="ent-conf">{g["score"]:.1%} confidence</div>'
-                    f"</div>"
-                )
-            render('<div class="ent-grid">' + "".join(cards) + "</div>")
+        left, right = st.columns([5, 3], gap="large")
+        with left:
+            render(f'<div class="paper">{annotate(text, entities)}</div>')
+        with right:
+            render(build_index(grouped))
 
-        with tab_table:
+        with st.expander("Table and export"):
             df = pd.DataFrame(
                 [
                     {
                         "Entity": g["text"],
-                        "Type": LABELS[g["label"]],
+                        "Type": ENTITY[g["label"]][0],
                         "Mentions": g["mentions"],
                         "Confidence": g["score"] * 100,
                     }
@@ -412,4 +448,11 @@ if result:
 # Footer
 # ---------------------------------------------------------
 
-render('<div class="footer">NewsNER-AI. A DistilBERT model fine-tuned on CoNLL-2003.</div>')
+render(
+    f"""
+<div class="foot">
+  <span>NewsNER-AI. DistilBERT fine-tuned on CoNLL-2003.</span>
+  <span><a href="{MODEL_URL}" target="_blank">Model on Hugging Face</a></span>
+</div>
+"""
+)
